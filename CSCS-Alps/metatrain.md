@@ -1,15 +1,11 @@
-# metatensor ecosystem on Alps
+# Using `metatrain` on Alps
 
-Last modified 2025-09-11.
-
-A short guide on how to install and use software from the metatensor ecosystem on the Alps infrastructure at CSCS.
-
-## `metatrain`
+Last update 2025-09-11.
 
 > [!warning]
 > Efficient distributed training on Alps requires [NCCL](https://docs.cscs.ch/software/communication/nccl/) over the high-speed Slingshot 11 network. Therefore, careful setup is required.
 
-### On top of uenv
+## On top of uenv
 
 uenv are user environment providing applications and libraries on Alps. `metatrain` can be built on top of the `pytorch` uenv. To list the available `pytorch` uenv you can use
 
@@ -85,7 +81,7 @@ The combination of `--ntasks-per-node=4` and `--gpus-per-task=1` ensures that `C
 > [!warning]
 > Always remember to activate the uenv when running. Most environment variables are required in order to obtain good scaling and good performance.
 
-### On top of a container
+## On top of a container
 
 > [!note]
 > `tox` is often used for the tests. This makes it difficult to tap into `pytorch` installed in the NVidia NGC PyTorch container. For this reason, in CI, a base CUDA container is used instead and the following index is added to `pip` for ARM64 + CUDA wheels: `https://download.pytorch.org/whl/cu128`.
