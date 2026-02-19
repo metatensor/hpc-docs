@@ -1,0 +1,36 @@
+lammps-metatomic:
+  compiler: [gcc]
+  network:
+    mpi: cray-mpich@8.1.32 +cuda
+  unify: true
+  specs:
+  - python@3.12
+  - cmake
+  - ninja
+  - libtool@2.4.6
+  - cuda@12
+  - py-torch@2.8.0 ~distributed ~nccl
+  - kokkos@4.7.01 +wrapper # Has to match the version in LAMMPS
+  - libmetatensor-torch@0.8.4
+  - libmetatomic-torch@0.1.8
+  - plumed +metatomic
+  - lammps@git.2025.9.10.mta2=20250910 +kokkos fft_kokkos=cufft +python +replica +mc +misc +plumed +manifold +metatomic +qtb +reaction +shock +spin +extra-pair +extra-fix
+  variants:
+  - +mpi
+  - +cuda
+  - cuda_arch=90
+  views:
+    develop:
+      link: all
+      # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+      exclude: ["lammps", "gcc-runtime"]
+      uenv:
+        add_compilers: true
+        prefix_paths:
+          LD_LIBRARY_PATH: [lib, lib64]
+    lammps:
+      link: all
+      uenv:
+        add_compilers: true
+        prefix_paths:
+          LD_LIBRARY_PATH: [lib, lib64]
