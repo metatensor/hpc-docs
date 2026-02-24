@@ -1,0 +1,11 @@
+name: lammps-metatrain
+store: /user-environment
+description: LAMMPS with metatrain software stack support
+spack:
+  repo: https://github.com/spack/spack.git
+  commit: v1.1.1
+  packages:
+    repo: https://github.com/spack/spack-packages.git
+    commit: cd8632aa721261368adfd27e60f789aa9c8288db # PR 3475
+modules: false
+version: 2
