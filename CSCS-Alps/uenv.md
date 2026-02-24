@@ -47,22 +47,52 @@ Custom Spack packages, overwriting the ones in Spack, can be added to
 Build an uenv from a recipe using the [uenv build serivice]:
 
 ```bash
-uenv build <PATH_TO_RECIPE> 
+git clone https://github.com/metatensor/hpc-docs
+cd hpc-docs
+uenv build CSCS-Alps/uenv/lammps-metatomic/ lmp/mta@daint%gh200
 ```
+
+This will build an uenv with the `lammps-metatomic` recipe, targeting the `daint` cluster and the `gh200` architecture.
+A tag will be automatically generated for the uenv; look at the output of `uenv build` for the exact name of the uenv,
+and for the link to the build logs.
+
+Once the build is complete, the uenv will be available in the `service::` namespace.
+
+```bash
+uenv image pull service::lmp/mta:<CI_TAG>@daint%gh200
+```
+
+Once you pull an uenv from the `service::` namespace, you can use it as you would use any other uenv,
+without the need to specify the `service::` namespace.
 
 ### Build uenv with stackinator
 
-[Install `stackinator`]. 
-Clone the [Alps cluster configuration] repository.
+[Install `stackinator`] and clone the [Alps cluster configuration] repository.
+
+```bash
+git clone https://github.com/eth-cscs/stackinator.git
+cd stackinator
+uv tool install --editable .
+cd ..
+```
+
+```bash
+git clone https://github.com/eth-cscs/alps-cluster-config.git
+```
 
 Build an uenv from a recipe using `stackinator`:
 
 ```bash
-stack-config --build <PATH_TO_BUILD_DIR> --recipe <PATH_TO_RECIPE> -S <PATH_TO_CLUSTER_CONFIG>
+git clone https://github.com/metatensor/hpc-docs
+cd hpc-docs
+stack-config --build /dev/shm/$USER/lmp-mta --recipe CSCS-Alps/uenv/lammps-metatomic -S $PWD/../alps-cluster-config/daint
 ```
 
 It is recommended to build under `/dev/shm/$USER/`.
 The path to the cluster configuration should point to the correct cluster directory in the `alps-cluster-config` repository.
+
+If you are doing repeated builds (e.g., for testing different depencencies or development), 
+you can [setup a local build cache]. `uenv build` automatically uses a build cache.
 
 ## Available recipes
 
@@ -89,3 +119,4 @@ The version of PyTorch provided by this uenv is non-distributed.
 [uenv recipe]: https://eth-cscs.github.io/stackinator/recipes/
 [Install `stackinator`]: https://eth-cscs.github.io/stackinator/#getting-stackinator
 [Alps cluster configuration]: https://github.com/eth-cscs/alps-cluster-config
+[setup a local build cache]: https://eth-cscs.github.io/stackinator/build-caches/
