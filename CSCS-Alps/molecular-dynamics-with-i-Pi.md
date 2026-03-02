@@ -18,7 +18,7 @@ cd MD-container
 ```
 
 > [!note]
-> Building the image consumes lots of computational resources, so it is recommended to do the following steps on an interactive computational node. To do so, use this command `Sinteract.sh -c 10 -g gpu:1 -m 40G -t 01:00:00`.
+> Building the image consumes lots of computational resources, so it is recommended to do the following steps on an interactive computational node. To do so, use this command `srun -t 01:00:00 --pty bash`.
 
 Inside `MD-container`, create a file `Containerfile`. Later on, we will create a custom container base on the container that you chose and the custom commands written in the `Containerfile`. The `Containerfile` for now looks like:
 
@@ -48,7 +48,7 @@ enroot import -x mount  -o ${SQSH_IMAGE_FILE} "podman://${IMAGE_NAME}"
 To configure, we need to write the following contents in to `$HOME/.edf/<container_nae>.toml`
 
 ```toml
-image = /path/to/container.sqsh
+image = "/path/to/container.sqsh"
 # Make your folders accessible inside the container, format "/path/in/container:/path/on/your/disk"
 mounts = ["${SCRATCH}:${SCRATCH}", "/your/workdir:/your/workdir"]
 workdir = "/your/workdir"
