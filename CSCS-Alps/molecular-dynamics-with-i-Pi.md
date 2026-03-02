@@ -1,39 +1,72 @@
 # Running molecular dynamics simulations on Alps with `metatomic` and `i-pi`
 
-Last update 17-02-2026.
+Last update 02-03-2026.
 
-CSCS recommends running machine learning-related applications in containers, see [this page](https://docs.cscs.ch/software/ml/#optimizing-data-loading-for-machine-learning) for reference. In this tutorial, we use the [Pytorch NGC container](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch) provided by Nvidia to fully exploit the power of the GH200s installed on daint.alps.
+Containers are powerful tools that give you almost full control over the environment of your application and ensure the reproducibility of the environment.
+
+CSCS is equipped with [the Container Engine (CE) toolset](https://docs.cscs.ch/software/container-engine/). This toolset is tightly integrated into the Slurm workload manager, allowing running the tasks inside the containers with little extra effort.
+
+Container images are generally available online. Specifically for CSCS, there are [images](https://docs.cscs.ch/software/alps-extended-images/) modified for fully leverage the ability of `daint.alps` based on the [NGC containers](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch?version=26.01-py3-igpu).
 
 ## Selecting and Building a Base Container
 
-To start, first pick a version of the container that you like by clicking the `Get Container` button of [this page](https://docs.cscs.ch/software/ml/#optimizing-data-loading-for-machine-learning) and copy the image path. Then, create a new folder, say `MD-container` for the following steps.
+To start, first pick a version of the container at this [Alps Extended Images](https://docs.cscs.ch/software/alps-extended-images/) page and copy the image URL. Then, create a new folder, say `MD-container` for the following steps.
 
 ```bash
 mkdir MD-container
 cd MD-container
 ```
 
-Inside `MD-container`, create a file `Containerfile`. Later on, we will create a custom container base on the NGC container that you chose and the custom commands written in the `Containerfile`. The `Containerfile` for now looks like:
+> [!note]
+> Building the image consumes lots of computational resources, so it is recommended to do the following steps on an interactive computational node. To do so, use this command `Sinteract.sh -c 10 -g gpu:1 -m 40G -t 01:00:00`.
+
+Inside `MD-container`, create a file `Containerfile`. Later on, we will create a custom container base on the container that you chose and the custom commands written in the `Containerfile`. The `Containerfile` for now looks like:
 
 ```Dockerfile
 FROM <image_path:you_chose>
 ```
 
-Build the container:
+Build the container, and also choose a name for it:
 
 ```bash
-podman build -t <image_name:you_like> .
+IMAGE_NAME=<image_name:you_like>
+podman build -t ${IMAGE_NAME} .
 ```
 
-At this stage, the container is identical to the upstream NGC image. You can enter this container with:
+At this stage, the container is identical to the upstream image. You can enter this container with `srun`, but we need to:
+
+1. save the container image;
+2. write down the configuration of this container for Container Engine.
+
+To save:
 
 ```bash
-podman run --rm -it --gpus all <image_name:you_like> bash
+SQSH_IMAGE_FILE=/path/to/container.sqsh
+enroot import -x mount  -o ${SQSH_IMAGE_FILE} "podman://${IMAGE_NAME}"
 ```
+
+To configure, we need to write the following contents in to `$HOME/.edf/<container_nae>.toml`
+
+```toml
+image = /path/to/container.sqsh
+# Make your folders accessible inside the container, format "/path/in/container:/path/on/your/disk"
+mounts = ["${SCRATCH}:${SCRATCH}", "/your/workdir:/your/workdir"]
+workdir = "/your/workdir"
+```
+
+Then, enter the container with
+
+```bash
+srun --environment=<container_name> --pty bash
+```
+
+This opens an interactive node and loads the container specified in `$HOME/.edf/<container_nae>.toml` for you.
 
 ## Making Persistent Modifications
 
-After entering the container, you can start configure your simulation environment as usual. However, be sure that every command are recorded, because your modification to this loaded container is temporary and will lose after you exit. To do permenant modifications, you should write down the commands in the `Containerfile`. The way to do so is to add them with the `RUN` keyword:
+After entering the container, you can play with it and configure your simulation environment as usual. However, be sure that every command are recorded, because your modification to this loaded container is *temporary and will lose* after you exit.
+
+To do permenant modifications, you should write down the commands in the `Containerfile`. The way to do so is to add them with the `RUN` keyword:
 
 ```Dockerfile
 FROM <image_path:you_chose>
@@ -52,66 +85,45 @@ ENV VARIABLE_NAME=value
 Rebuild the container:
 
 ```bash
-podman build -t <image_name:you_like> .
+podman build -t ${IMAGE_NAME} .
 ```
 
-You can save the modified container:
+You can save the modified container, but you need to first remove the previous image file:
 
 ```bash
-podman save -o /path/to/container.tar <image_name:you_like>
+rm ${SQSH_IMAGE_FILE}
+enroot import -x mount  -o ${SQSH_IMAGE_FILE} "podman://${IMAGE_NAME}"
 ```
 
 Next time, you can use the container by first loading it with:
 
 ```bash
-podman load -i /path/to/container.tar
-```
-
-and then enter it with:
-
-```bash
-podman run --rm -it --gpus all <image_name:you_like> bash
+srun --environment=<container_name> --pty bash
 ```
 
 ## Example Containerfile for `metatomic + i-Pi + PLUMED`
 
-Below is an example `Containerfile` that
-
-- installs micromamba
-- creates a Python environment
-- compiles `metatomic[torch]`
-- builds PLUMED
+Below is an example `Containerfile`
 
 ```Dockerfile
 # The image path of the nvidia container that you want to use
-FROM nvcr.io/nvidia/pytorch:26.01-py3 
+FROM jfrog.svc.cscs.ch/docker-group-csstaff/alps-images/ngc-pytorch:26.01-py3-alps2
 
-# Install micromamba and create conda environment
-RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-aarch64/latest | tar -xvj bin/micromamba \
-    && eval "$(./bin/micromamba shell hook -s posix)" \
-    && ./bin/micromamba shell init -s bash -r ~/micromamba \
-    && source ~/.bashrc \
-    && micromamba activate \
-    && micromamba create -n sim python==3.12.* -y \
-# Ensure system torch is accessible in the conda env
-    && echo "/usr/local/lib/python3.12/dist-packages" > /root/micromamba/envs/sim/lib/python3.12/site-packages/system_torch.pth \
-# Build your environment
-    && micromamba activate sim \
-    && pip install ipython metatensor metatomic ipi ase \
-    && pip install metatensor[torch] --no-build-isolation  --no-binary=metatensor-torch \
-    && pip install metatomic[torch] --no-build-isolation  --no-binary=metatomic-torch \
-    && pip install vesin[torch] --no-build-isolation  --no-binary=vesin-torch \
-    && wget https://github.com/plumed/plumed2/archive/refs/tags/v2.10.0.tar.gz -O /tmp/plumed.tar.gz \
-    && tar -xvf /tmp/plumed.tar.gz -C /tmp \
-    && cd /tmp/plumed2-2.10.0 \
-    && CPPFLAGS=$(python src/metatomic/flags-from-python.py --cppflags) \
-    && LDFLAGS=$(python src/metatomic/flags-from-python.py --ldflags) \
-    && ./configure PYTHON_BIN=python --enable-libtorch --enable-libmetatomic --enable-modules=+metatomic LDFLAGS="$LDFLAGS" CPPFLAGS="$CPPFLAGS" \
-    && make -j \
-    && make install
-
-ENV PLUMED_KERNEL=/usr/local/lib/libplumedKernel.so
-ENV PYTHONPATH="/usr/local/lib/plumed/python:$PYTHONPATH"
+RUN pip install --no-cache-dir \
+        ase \
+        metatensor \
+        metatrain \
+        ipi \
+        mace-torch \
+        sphericart-torch \
+        torch-spex \
+        torch-ema \
+    && pip install --no-cache-dir --no-build-isolation --no-binary=metatensor-torch \
+        metatensor[torch] \
+    && pip install --no-cache-dir --no-build-isolation --no-binary=metatomic-torch \
+        metatomic[torch] \
+    && pip install --no-cache-dir --no-build-isolation --no-binary=vesin-torch \
+        vesin[torch]
 
 WORKDIR /workspace
 ```
@@ -121,55 +133,31 @@ WORKDIR /workspace
 The following is an example job submission script, in which we launch four tasks, each on a unique GPU.
 
 ```bash
-#!/bin/bash -l
+#!/bin/bash
 #SBATCH -o job.%j.out
-#SBATCH --job-name=metad-run
-#SBATCH --nodes 1
+#SBATCH -J example_job
+#SBATCH --time=24:00:00
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
-#SBATCH --cpus-per-task=40
-#SBATCH --time 1-00:00:00
-#SBATCH --gres=gpu:4
-
-
-set -e
-
-# Load the container image
-IMAGE_TAR=/path/for/saving_the_container
-IMAGE_NAME=<image_name:you_like>
-podman load -i $IMAGE_TAR
+#SBATCH --cpus-per-task=4
+#SBATCH --gpus-per-task=1
+#SBATCH --exclusive
 
 run_job () {
-    local NAME=$1
-    local GPU=$2
-    WORKDIR=/your/work_dir/simulation_${NAME}/
-    IPIFILE=/your/work_dir/parameters/${NAME}_input.xml
-
-    cd $WORKDIR
-
-    srun --cpus-per-task=$SLURM_CPUS_PER_TASK --ntasks=1 --gpus=1 \
-        --gpu-bind=single:1 \
-        --export=ALL,CUDA_VISIBLE_DEVICES=$GPU,NVIDIA_VISIBLE_DEVICES=$GPU \
-        podman run --rm \
-        --gpus all \
-        --env CUDA_VISIBLE_DEVICES=$GPU \
-        --env NVIDIA_VISIBLE_DEVICES=$GPU \
-        # map your directories to the directories in the container
-        -v /users/<your_username>:/users/<your_username> \
-        -v /capstor/scratch/cscs/<your_username>:/capstor/scratch/cscs/<your_username> \
-        -w "${WORKDIR}" \
-        "${IMAGE_NAME}" \
-        bash -lc "
-            export OMP_NUM_THREADS=1
-            export MKL_NUM_THREADS=1
-            export TORCH_NUM_THREADS=1
-            /workspace/bin/micromamba run -n sim i-pi ${IPIFILE}
-        " &
+    local system=$1
+    srun --gpus=1 --gpu-bind=single:1 --environment=<container_name> bash -lc "
+        mkdir ${SCRATCH}/results
+        cd ${SCRATCH}/results
+        mkdir $system
+        cd $system
+        i-pi /your/workdir/${system}.xml
+    " &
 }
 
-run_job H3PO4   0
-run_job NaH2PO4 1
-run_job Na2HPO4 2
-run_job Na3PO4  3
+run_job water_0
+run_job water_1
+run_job water_2
+run_job water_3
 
 wait
 
