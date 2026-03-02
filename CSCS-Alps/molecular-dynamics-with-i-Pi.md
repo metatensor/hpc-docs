@@ -148,7 +148,7 @@ The following is an example job submission script, in which we launch four tasks
 
 run_job () {
     local system=$1
-    srun --ntask=1 --gpus=1 --gpu-bind=single:1 --environment=<container_name> bash -lc "
+    srun --ntasks=1 --gpus=1 --gpu-bind=single:1 --environment=<container_name> bash -lc "
         cd ${SCRATCH}/results
         mkdir $system
         cd $system
