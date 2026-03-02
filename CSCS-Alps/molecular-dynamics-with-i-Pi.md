@@ -52,6 +52,9 @@ image = "/path/to/container.sqsh"
 # Make your folders accessible inside the container, the format: "/path/in/container:/path/on/your/disk"
 mounts = ["${SCRATCH}:${SCRATCH}", "/your/workdir:/your/workdir"]
 workdir = "/your/workdir"
+
+[annotations]
+com.hooks.cxi.enabled = "false"
 ```
 
 > [!note]
@@ -63,7 +66,7 @@ Then, enter the container with
 srun --environment=<container_name> --pty bash
 ```
 
-This opens an interactive node and loads the container specified in `$HOME/.edf/<container_nae>.toml` for you.
+This opens an interactive node and loads the container specified in `$HOME/.edf/<container_name>.toml` for you.
 
 > [!warning]
 > This only helps you get familar with the container, and after you exit this container, all the modifications that you have done would permanently lose.
