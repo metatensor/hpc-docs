@@ -6,7 +6,7 @@ Containers are powerful tools that give you almost full control over the environ
 
 CSCS is equipped with [the Container Engine (CE) toolset](https://docs.cscs.ch/software/container-engine/). This toolset is tightly integrated into the Slurm workload manager, allowing running the tasks inside the containers with little extra effort.
 
-Container images are generally available online. Specifically for CSCS, there are [images](https://docs.cscs.ch/software/alps-extended-images/) modified for fully leverage the ability of `daint.alps` based on the [NGC containers](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch?version=26.01-py3-igpu).
+Container images are generally available online. Specifically for CSCS, there are [images](https://docs.cscs.ch/software/alps-extended-images/) modified for fully leverage the ability of `daint.alps` based on the [NGC containers](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch?version=26.01-py3-igpu). Other containers should work too, but you should be careful about the network stack. For example, the NGC containers mentioned above uses OpenMPI 4, which is incompatible with CSCS network stack, and leads to some complexity when MPI is needed.
 
 ## Selecting and Building a Base Container
 
@@ -61,6 +61,9 @@ srun --environment=<container_name> --pty bash
 ```
 
 This opens an interactive node and loads the container specified in `$HOME/.edf/<container_nae>.toml` for you.
+
+> [!warning]
+> This only helps you to get familar with the container, and after you exit this container, all the modification that you have done would permanently lose.
 
 ## Making Persistent Modifications
 
@@ -145,8 +148,7 @@ The following is an example job submission script, in which we launch four tasks
 
 run_job () {
     local system=$1
-    srun --gpus=1 --gpu-bind=single:1 --environment=<container_name> bash -lc "
-        mkdir ${SCRATCH}/results
+    srun --ntask=1 --gpus=1 --gpu-bind=single:1 --environment=<container_name> bash -lc "
         cd ${SCRATCH}/results
         mkdir $system
         cd $system
@@ -154,6 +156,7 @@ run_job () {
     " &
 }
 
+mkdir ${SCRATCH}/results
 run_job water_0
 run_job water_1
 run_job water_2
