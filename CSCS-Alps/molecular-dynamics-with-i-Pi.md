@@ -26,7 +26,16 @@ Inside `MD-container`, create a file `Containerfile`. Later on, we will create a
 FROM <image_path:you_chose>
 ```
 
-Build the container, and also choose a name for it:
+Before building the container, we need to set the container storage to `/dev/shm` 
+```bash
+cat ~/.config/containers/storage.conf
+[storage]
+driver = "overlay"
+runroot = "/dev/shm/$USER/runroot"
+graphroot = "/dev/shm/$USER/root"
+```
+
+No we can choose a name for the container and build it:
 
 ```bash
 IMAGE_NAME=<image_name:you_like>
@@ -45,7 +54,7 @@ SQSH_IMAGE_FILE=/path/to/container.sqsh
 enroot import -x mount  -o ${SQSH_IMAGE_FILE} "podman://${IMAGE_NAME}"
 ```
 
-To configure, we need to write the following contents in to `$HOME/.edf/<container_nae>.toml`
+To configure, we need to write the following contents in to `$HOME/.edf/<container_name>.toml`
 
 ```toml
 image = "/path/to/container.sqsh"
@@ -116,7 +125,7 @@ Below is an example `Containerfile`
 
 ```Dockerfile
 # The image path of the Alps Extended container that you want to use
-FROM jfrog.svc.cscs.ch/docker-group-csstaff/alps-images/ngc-pytorch:26.01-py3-alps2
+FROM jfrog.svc.cscs.ch/docker-group-csstaff/alps-images/ngc-pytorch:26.01-py3-alps3
 
 RUN pip install --no-cache-dir \
         ase \
