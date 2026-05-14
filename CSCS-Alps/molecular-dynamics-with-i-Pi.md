@@ -124,7 +124,7 @@ srun --environment=<container_name> --pty bash
 Below is an example `Containerfile`
 
 ```Dockerfile
-# The image path of the Alps Extended container that you want to use
+# The image path of the Alps Extended container that you want to use. You can find the latest version here: https://docs.cscs.ch/software/alps-extended-images/
 FROM jfrog.svc.cscs.ch/docker-group-csstaff/alps-images/ngc-pytorch:26.01-py3-alps3
 
 RUN pip install --no-cache-dir \
