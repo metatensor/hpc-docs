@@ -35,7 +35,7 @@ runroot = "/dev/shm/$USER/runroot"
 graphroot = "/dev/shm/$USER/root"
 ```
 
-No we can choose a name for the container and build it:
+Now we can choose a name for the container and build it:
 
 ```bash
 IMAGE_NAME=<image_name:you_like>
